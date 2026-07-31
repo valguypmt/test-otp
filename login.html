@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary-blue: #0054a6;
+      --hover-blue: #003a75;
+      --bg-color: #f8f9fa;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --border-color: #e0e0e0;
+      --text-color: #333333;
+    }
+
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('https://i.imgur.com/QqFIR3y.jpeg');
+      background-size: cover; background-position: center; background-attachment: fixed;
+      color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    }
+
+    .container { width: 100%; max-width: 480px; padding: 20px; box-sizing: border-box; }
+    .card {
+      background: var(--card-bg); backdrop-filter: blur(8px);
+      border-top: 4px solid var(--primary-blue); border-radius: 8px; padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    h2 { margin-top: 0; margin-bottom: 20px; color: var(--primary-blue); font-size: 1.4rem; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; margin-bottom: 6px; font-size: 0.88rem; font-weight: 500; color: #555; }
+    .input-row { display: flex; gap: 10px; }
+
+    input[type="email"], input[type="text"] {
+      width: 100%; padding: 11px 14px; border: 1px solid var(--border-color);
+      border-radius: 4px; box-sizing: border-box; font-size: 0.95rem;
+    }
+
+    .btn-inline {
+      white-space: nowrap; padding: 11px 18px; background-color: var(--primary-blue);
+      color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;
+    }
+    .btn-inline:disabled, .btn-submit:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+    .checkbox-group { display: flex; gap: 10px; margin: 20px 0; align-items: flex-start; }
+    .checkbox-group label { font-size: 0.84rem; color: #555; cursor: pointer; margin: 0; }
+
+    .btn-submit {
+      width: 100%; padding: 13px; background-color: var(--primary-blue);
+      color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;
+    }
+
+    .status-msg { margin-top: 15px; padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; display: none; }
+    .status-msg.error { background-color: #fde8e8; color: #9b1c1c; }
+    .status-msg.success { background-color: #def7ec; color: #03543f; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h2>Student Login</h2>
+
+      <div class="form-group">
+        <label for="emailInput">Email Address</label>
+        <div class="input-row">
+          <input type="email" id="emailInput" placeholder="yourname@gmail.com" oninput="validateForm()">
+          <button id="sendBtn" class="btn-inline" onclick="sendOTP()">Send OTP</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="otpInput">Verification Code (6 Digits)</label>
+        <input type="text" id="otpInput" maxlength="6" placeholder="e.g. 123456" oninput="validateForm()">
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="termsCheck" onchange="validateForm()">
+        <label for="termsCheck">
+          I agree to link my email for whitelist approval and account status verification.
+        </label>
+      </div>
+
+      <button id="loginBtn" class="btn-submit" onclick="verifyAndLogin()" disabled>Verify & Login</button>
+      <div id="statusBox" class="status-msg"></div>
+    </div>
+  </div>
+
+  <script>
+    // DECLARED EXACTLY ONCE
+    const SUPABASE_URL = 'https://kqttlomwzrwjblqysrur.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_AEOrxcIC69-EyXrkrcpN6Q_oBQCjr96';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let resendTimer = null;
+
+    function showMessage(text, isError = false) {
+      const box = document.getElementById('statusBox');
+      box.textContent = text;
+      box.className = 'status-msg ' + (isError ? 'error' : 'success');
+      box.style.display = 'block';
+    }
+
+    function validateForm() {
+      const email = document.getElementById('emailInput').value.trim();
+      const otp = document.getElementById('otpInput').value.trim();
+      const isChecked = document.getElementById('termsCheck').checked;
+
+      const loginBtn = document.getElementById('loginBtn');
+      loginBtn.disabled = !(email && otp.length === 6 && isChecked);
+    }
+
+    function startCooldown(seconds = 60) {
+      const sendBtn = document.getElementById('sendBtn');
+      sendBtn.disabled = true;
+      let remaining = seconds;
+      sendBtn.textContent = `Wait (${remaining}s)`;
+
+      clearInterval(resendTimer);
+      resendTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(resendTimer);
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send OTP';
+        } else {
+          sendBtn.textContent = `Wait (${remaining}s)`;
+        }
+      }, 1000);
+    }
+
+    async function sendOTP() {
+      const email = document.getElementById('emailInput').value.trim();
+
+      if (!email || !email.includes('@')) {
+        return showMessage('Please enter a valid email address.', true);
+      }
+
+      const sendBtn = document.getElementById('sendBtn');
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending...';
+
+      const { error } = await supabase.auth.signInWithOtp({ email });
+
+      if (error) {
+        showMessage(error.message, true);
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send OTP';
+      } else {
+        showMessage('OTP sent to your email inbox!', false);
+        startCooldown(60);
+      }
+    }
+
+    async function verifyAndLogin() {
+      const email = document.getElementById('emailInput').value.trim();
+      const token = document.getElementById('otpInput').value.trim();
+
+      const loginBtn = document.getElementById('loginBtn');
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Verifying...';
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email'
+      });
+
+      if (error) {
+        showMessage(error.message || 'Invalid verification code.', true);
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Verify & Login';
+      } else {
+        showMessage('Verification success! Redirecting...', false);
+        setTimeout(() => {
+          window.location.href = 'setup.html';
+        }, 800);
+      }
+    }
+  </script>
+</body>
+</html>

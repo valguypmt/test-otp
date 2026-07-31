@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Setup</title>
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary-blue: #0054a6;
+      --hover-blue: #003a75;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --border-color: #e0e0e0;
+      --text-color: #333333;
+      --error-red: #e11d48;
+    }
+
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('https://i.imgur.com/QqFIR3y.jpeg');
+      background-size: cover; background-position: center; background-attachment: fixed;
+      color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    }
+
+    .container { width: 100%; max-width: 420px; padding: 20px; box-sizing: border-box; }
+    .card {
+      background: var(--card-bg); backdrop-filter: blur(8px);
+      border-top: 4px solid var(--primary-blue); border-radius: 8px; padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .card.card-banned { border-top: 4px solid var(--error-red); }
+
+    h2 { margin-top: 0; margin-bottom: 20px; color: var(--primary-blue); font-size: 1.3rem; }
+    .title-banned { color: var(--error-red) !important; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #555; }
+
+    input {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border-color);
+      border-radius: 4px; box-sizing: border-box; font-size: 0.95rem;
+    }
+    input.input-error { border-color: var(--error-red); }
+    input[disabled] { background-color: #f5f5f5; color: #777; cursor: not-allowed; }
+
+    .error-msg { color: var(--error-red); font-size: 0.82rem; margin-top: 6px; }
+
+    .btn {
+      width: 100%; padding: 12px; background-color: var(--primary-blue);
+      color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin-top: 5px;
+    }
+    .btn:hover { background-color: var(--hover-blue); }
+    .btn-secondary { background-color: #555; margin-top: 15px; }
+    .btn-outline { background-color: transparent; color: #555; border: 1px solid var(--border-color); margin-top: 10px; }
+
+    .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
+    .badge-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .badge-verified { background-color: #def7ec; color: #03543f; border: 1px solid #84e1bc; }
+    .badge-banned { background-color: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+
+    .status-info { font-size: 0.9rem; color: #666; margin-top: 15px; line-height: 1.4; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- REGISTRATION CARD -->
+    <div id="registrationCard" class="card hidden">
+      <h2>Account Linking</h2>
+      
+      <div class="form-group">
+        <label for="emailInput">Verified Email</label>
+        <input type="text" id="emailInput" disabled>
+      </div>
+
+      <div class="form-group">
+        <label for="usernameInput">Minecraft Username (IGN)</label>
+        <input 
+          type="text" 
+          id="usernameInput" 
+          minlength="3" 
+          maxlength="16" 
+          placeholder="e.g. Steve_123" 
+          oninput="sanitizeUsername(this)"
+        >
+        <div id="usernameError" class="error-msg hidden"></div>
+      </div>
+
+      <button class="btn" type="button" onclick="submitProfile()">Submit to Team Manager</button>
+    </div>
+
+    <!-- STATUS CARD -->
+    <div id="statusCard" class="card hidden">
+      <h2 id="cardTitle">Account Status</h2>
+      <p><strong>Account:</strong> <span id="displayUsername"></span></p>
+      <p><strong>Email:</strong> <span id="displayEmail"></span></p>
+      
+      <div id="statusPending" class="hidden">
+        <div class="status-badge badge-pending">PENDING APPROVAL</div>
+        <p class="status-info">Your request has been submitted. Your IGN will be reviewed shortly.</p>
+      </div>
+
+      <div id="statusVerified" class="hidden">
+        <div class="status-badge badge-verified">VERIFIED & WHITELISTED</div>
+        <p class="status-info">You're set! You can launch Minecraft and join the server.</p>
+      </div>
+
+      <div id="statusBanned" class="hidden">
+        <div class="status-badge badge-banned">ACCOUNT BANNED</div>
+        <p class="status-info">Access to the server has been revoked for this account.</p>
+      </div>
+
+      <button class="btn btn-secondary" type="button" onclick="checkUserOnLoad()">Refresh Status</button>
+      <button class="btn btn-outline" type="button" onclick="logout()">Back To Main Page</button>
+    </div>
+
+  </div>
+
+  <script>
+    // SUPABASE CREDENTIALS
+    const SUPABASE_URL = 'https://kqttlomwzrwjblqysrur.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_AEOrxcIC69-EyXrkrcpN6Q_oBQCjr96';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentSessionUser = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkUserOnLoad();
+    });
+
+    function sanitizeUsername(input) {
+      input.value = input.value.replace(/[^a-zA-Z0-9_]/g, '');
+      clearError();
+    }
+
+    function showError(message) {
+      const errDiv = document.getElementById('usernameError');
+      errDiv.textContent = message;
+      errDiv.classList.remove('hidden');
+      document.getElementById('usernameInput').classList.add('input-error');
+    }
+
+    function clearError() {
+      const errDiv = document.getElementById('usernameError');
+      errDiv.textContent = '';
+      errDiv.classList.add('hidden');
+      document.getElementById('usernameInput').classList.remove('input-error');
+    }
+
+    // Load active session directly from Supabase
+    async function checkUserOnLoad() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      currentSessionUser = user;
+      document.getElementById('emailInput').value = user.email;
+
+      // Query profiles table
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        showStatusScreen(data.username, data.status);
+      } else {
+        document.getElementById('registrationCard').classList.remove('hidden');
+        document.getElementById('statusCard').classList.add('hidden');
+      }
+    }
+
+    async function submitProfile() {
+      clearError();
+      const username = document.getElementById('usernameInput').value.trim();
+
+      if (!currentSessionUser) return showError('Session expired. Please log in again.');
+      if (!username || username.length < 3 || username.length > 16) {
+        return showError('Username must be between 3 and 16 characters.');
+      }
+
+      // Save user to Supabase table
+      const { error } = await supabase
+        .from('profiles')
+        .insert([
+          { id: currentSessionUser.id, email: currentSessionUser.email, username: username, status: 'pending' }
+        ]);
+
+      if (error) {
+        if (error.code === '23505') {
+          showError('This IGN is already registered by another student.');
+        } else {
+          showError(error.message);
+        }
+      } else {
+        showStatusScreen(username, 'pending');
+      }
+    }
+
+    function showStatusScreen(username, status) {
+      document.getElementById('registrationCard').classList.add('hidden');
+      const statusCard = document.getElementById('statusCard');
+      const cardTitle = document.getElementById('cardTitle');
+      statusCard.classList.remove('hidden');
+
+      document.getElementById('displayUsername').textContent = username;
+      document.getElementById('displayEmail').textContent = currentSessionUser.email;
+
+      document.getElementById('statusPending').classList.add('hidden');
+      document.getElementById('statusVerified').classList.add('hidden');
+      document.getElementById('statusBanned').classList.add('hidden');
+      statusCard.classList.remove('card-banned');
+      cardTitle.classList.remove('title-banned');
+
+      if (status === 'verified') {
+        document.getElementById('statusVerified').classList.remove('hidden');
+      } else if (status === 'banned') {
+        document.getElementById('statusBanned').classList.remove('hidden');
+        statusCard.classList.add('card-banned');
+        cardTitle.classList.add('title-banned');
+      } else {
+        document.getElementById('statusPending').classList.remove('hidden');
+      }
+    }
+
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
