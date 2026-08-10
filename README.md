@@ -1,6 +1,6 @@
 - Random OTP generator
 - OTP cooldown (maybe)
 - Only @student.edu.vn emails allowed
-- Restrict Minecraft names to be legal (3–16 characters, no special symbols, and no duplicate names across accounts)
+- Restrict Minecraft names (3–16 characters, no special symbols, and no duplicate names across accounts)
 - SHA-256 email hashing for storage in user.json
 - Editable status for each account in user.json
