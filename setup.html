@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Setup</title>
+  <style>
+    :root {
+      --primary-blue: #0054a6;
+      --hover-blue: #003a75;
+      --bg-color: #f8f9fa;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --border-color: #e0e0e0;
+      --text-color: #333333;
+      --error-red: #e11d48;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('https://i.imgur.com/QqFIR3y.jpeg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-top: 4px solid var(--primary-blue);
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .card.card-banned {
+      border-top: 4px solid var(--error-red);
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: var(--primary-blue);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .title-banned {
+      color: var(--error-red) !important;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #555555;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+    }
+
+    input.input-error {
+      border-color: var(--error-red);
+    }
+
+    input[disabled] {
+      background-color: #f5f5f5;
+      color: #777777;
+      cursor: not-allowed;
+    }
+
+    /* INLINE ERROR MESSAGE STYLING BELOW INPUT */
+    .error-msg {
+      color: var(--error-red);
+      font-size: 0.82rem;
+      font-weight: 500;
+      margin-top: 6px;
+      line-height: 1.3;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--primary-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-top: 5px;
+    }
+
+    .btn:hover {
+      background-color: var(--hover-blue);
+    }
+
+    .btn-secondary {
+      background-color: #555555;
+      margin-top: 15px;
+    }
+
+    .btn-secondary:hover {
+      background-color: #333333;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: #555555;
+      border: 1px solid var(--border-color);
+      margin-top: 10px;
+    }
+
+    .btn-outline:hover {
+      background-color: #f0f0f0;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-pending {
+      background-color: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    .badge-verified {
+      background-color: #def7ec;
+      color: #03543f;
+      border: 1px solid #84e1bc;
+    }
+
+    .badge-banned {
+      background-color: #ffe4e6;
+      color: #9f1239;
+      border: 1px solid #fecdd3;
+    }
+
+    .status-info {
+      font-size: 0.9rem;
+      color: #666666;
+      margin-top: 15px;
+      line-height: 1.4;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- REGISTRATION FORM CARD -->
+    <div id="registrationCard" class="card hidden">
+      <h2>Account Linking</h2>
+      
+      <div class="form-group">
+        <label for="emailInput">Verified Email</label>
+        <input type="text" id="emailInput" disabled>
+      </div>
+
+      <div class="form-group">
+        <label for="usernameInput">Minecraft Username (IGN)</label>
+        <input 
+          type="text" 
+          id="usernameInput" 
+          minlength="3"
+          maxlength="16" 
+          placeholder="e.g. Steve_123" 
+          oninput="sanitizeUsername(this)"
+        >
+        <!-- Inline Error Message Display -->
+        <div id="usernameError" class="error-msg hidden"></div>
+      </div>
+
+      <button class="btn" type="button" onclick="submitProfile()">Submit to Team Manager</button>
+    </div>
+
+    <!-- LIVE STATUS DISPLAY CARD -->
+    <div id="statusCard" class="card hidden">
+      <h2 id="cardTitle">Account Status</h2>
+      <p><strong>Account:</strong> <span id="displayUsername"></span></p>
+      <p><strong>Email:</strong> <span id="displayEmail"></span></p>
+      
+      <!-- PENDING STATE -->
+      <div id="statusPending" class="hidden">
+        <div class="status-badge badge-pending">PENDING APPROVAL</div>
+        <p class="status-info">
+          Your request has been submitted to the team manager. Your username will be reviewed and whitelisted shortly.
+        </p>
+      </div>
+
+      <!-- VERIFIED STATE -->
+      <div id="statusVerified" class="hidden">
+        <div class="status-badge badge-verified">VERIFIED & WHITELISTED</div>
+        <p class="status-info">
+          You're all set! You can now launch Minecraft and join the server.
+        </p>
+      </div>
+
+      <!-- BANNED STATE -->
+      <div id="statusBanned" class="hidden">
+        <div class="status-badge badge-banned">ACCOUNT BANNED</div>
+        <p class="status-info">
+          Access to the server has been revoked for this account. Contact an administrator if you believe this is an error.
+        </p>
+      </div>
+
+      <button id="refreshBtn" class="btn btn-secondary" type="button" onclick="checkStatus()">Refresh Status</button>
+      
+      <!-- BACK TO LOGIN BUTTON -->
+      <button class="btn btn-outline" type="button" onclick="goToLogin()">Back To Main Page</button>
+    </div>
+
+  </div>
+
+  <script>
+
+
+    const SERVER_URL = 'http://localhost:3000';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const userEmail = urlParams.get('email') || sessionStorage.getItem('userEmail') || '';
+    document.getElementById('emailInput').value = userEmail;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkUserOnLoad();
+    });
+
+    // Strip spaces and special characters in real-time
+    function sanitizeUsername(input) {
+      input.value = input.value.replace(/[^a-zA-Z0-9_]/g, '');
+      clearError(); // Clear error message as soon as user types
+    }
+
+    function showError(message) {
+      const errDiv = document.getElementById('usernameError');
+      const input = document.getElementById('usernameInput');
+      errDiv.textContent = message;
+      errDiv.classList.remove('hidden');
+      input.classList.add('input-error');
+    }
+
+    function clearError() {
+      const errDiv = document.getElementById('usernameError');
+      const input = document.getElementById('usernameInput');
+      errDiv.textContent = '';
+      errDiv.classList.add('hidden');
+      input.classList.remove('input-error');
+    }
+
+    async function checkUserOnLoad() {
+      const token = sessionStorage.getItem('sessionToken');
+
+      if (!userEmail) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${SERVER_URL}/api/status?email=${encodeURIComponent(userEmail)}`);
+        const data = await res.json();
+
+        if (data.success && data.username) {
+          showStatusScreen(data.username, data.status);
+        } else {
+          if (!token) {
+            window.location.href = 'login.html';
+            return;
+          }
+          
+          document.getElementById('registrationCard').classList.remove('hidden');
+          document.getElementById('statusCard').classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('Error fetching status on load:', err);
+        if (!token) {
+          window.location.href = 'login.html';
+        } else {
+          document.getElementById('registrationCard').classList.remove('hidden');
+        }
+      }
+    }
+
+    async function submitProfile() {
+      clearError();
+      const username = document.getElementById('usernameInput').value.trim();
+      const token = sessionStorage.getItem('sessionToken');
+
+      if (!userEmail) return showError('No email session found.');
+      if (!username) return showError('Minecraft username is required.');
+
+      if (username.length < 3 || username.length > 16) {
+        return showError('Username must be between 3 and 16 characters long.');
+      }
+
+      if (!token) {
+        showError('Session expired. Redirecting...');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${SERVER_URL}/api/register-profile`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-session-token': token
+          },
+          body: JSON.stringify({
+            email: userEmail,
+            username: username
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.removeItem('sessionToken');
+          showStatusScreen(data.username, data.status);
+        } else {
+          // Display backend validation message directly under the input box
+          showError(data.message);
+        }
+      } catch (err) {
+        showError('Error connecting to server. Please try again.');
+      }
+    }
+
+    async function checkStatus() {
+      if (!userEmail) return;
+
+      try {
+        const res = await fetch(`${SERVER_URL}/api/status?email=${encodeURIComponent(userEmail)}`);
+        const data = await res.json();
+        if (data.success) {
+          showStatusScreen(data.username, data.status);
+        }
+      } catch (err) {
+        console.error('Status check error:', err);
+      }
+    }
+
+    function showStatusScreen(username, status) {
+      document.getElementById('registrationCard').classList.add('hidden');
+      
+      const statusCard = document.getElementById('statusCard');
+      const cardTitle = document.getElementById('cardTitle');
+      statusCard.classList.remove('hidden');
+
+      document.getElementById('displayUsername').textContent = username;
+      document.getElementById('displayEmail').textContent = userEmail;
+
+      document.getElementById('statusPending').classList.add('hidden');
+      document.getElementById('statusVerified').classList.add('hidden');
+      document.getElementById('statusBanned').classList.add('hidden');
+      statusCard.classList.remove('card-banned');
+      cardTitle.classList.remove('title-banned');
+
+      if (status === 'verified') {
+        document.getElementById('statusVerified').classList.remove('hidden');
+      } else if (status === 'banned') {
+        document.getElementById('statusBanned').classList.remove('hidden');
+        statusCard.classList.add('card-banned');
+        cardTitle.classList.add('title-banned');
+      } else {
+        document.getElementById('statusPending').classList.remove('hidden');
+      }
+    }
+
+    function goToLogin() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
